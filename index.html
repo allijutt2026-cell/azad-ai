@@ -94,7 +94,7 @@
 <div id="setup">
   <h1>Azad AI</h1>
   <div class="tag">on-device · no server · no account · no rules</div>
-  <div class="card"><h3>1 — CHECK</h3><div id="gpuOut">checking WebGPU…</div></div>
+  <div class="card"><h3>1 — CHECK</h3><div id="gpuOut">WebGPU check — CPU/WASM fallback bhi available hai</div></div>
   <div class="card">
     <h3>2 — MODEL</h3>
     <label>Model chunein (phone pe download hoga, sirf ek baar)</label>
@@ -107,7 +107,8 @@
       <option value="4096">4096</option>
       <option value="8192">8192 — zyada memory</option>
     </select>
-    <div style="margin-top:16px"><button class="btn" id="loadBtn">load model</button></div>
+    <div style="margin-top:16px"><button class="btn" id="loadBtn">Load WebGPU model</button></div>
+    <div style="margin-top:8px"><button class="btn2" id="loadCpuBtn" style="width:100%">Load phone-compatible CPU model (no WebGPU)</button></div>
     <div id="bar"><div id="barIn"></div></div>
     <div id="progText"></div>
     <div class="note">Pehli baar 1-3 GB. Uske baad browser cache se offline chalega.</div>
@@ -160,9 +161,53 @@
 </div>
 <div id="toast"></div>
 <script type="module">
-let webllm=null;
+
+// WebGPU capability is checked once per page load and cached.
+let _webgpuCheckPromise = null;
+function checkWebGPUOnce(){
+  if (!_webgpuCheckPromise) {
+    _webgpuCheckPromise = (async () => {
+      try {
+        if (!("gpu" in navigator)) return { available:false, reason:"WebGPU API unavailable" };
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) return { available:false, reason:"No WebGPU adapter" };
+        const features = adapter.features;
+        return { available:true, shaderF16: !!features && features.has("shader-f16"), adapter };
+      } catch (err) {
+        return { available:false, reason:String(err && err.message || err) };
+      }
+    })();
+  }
+  return _webgpuCheckPromise;
+}
+
+
+let webllm=null, transformers=null, wasmPipe=null;
 try{webllm=await import("https://esm.run/@mlc-ai/web-llm");}
-catch(e){webllm=await import("https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/+esm");}
+catch(e){try{webllm=await import("https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/+esm");}catch(e2){}}
+async function loadCpuModel(){
+ const b=$("loadCpuBtn"); b.disabled=true;
+ $("progText").textContent="CPU model library load ho rahi hai…";
+ $("barIn").style.width="5%";
+ try{
+   if(!transformers) transformers=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2");
+   $("progText").textContent="SmolLM2 360M download/load ho raha hai. Pehli baar internet zaroori hai…";
+   wasmPipe=await transformers.pipeline("text-generation","onnx-community/SmolLM2-360M-ONNX",{
+     device:"wasm", dtype:"q4",
+     progress_callback:(p)=>{
+       if(p && typeof p.progress==="number"){
+         $("barIn").style.width=Math.max(5,Math.round(p.progress*100))+"%";
+         $("progText").textContent=(p.file||p.status||"model loading")+" "+Math.round(p.progress*100)+"%";
+       }
+     }
+   });
+   $("progText").textContent="CPU model ready. Is model ko WebGPU/shader-f16 nahi chahiye.";
+   $("barIn").style.width="100%"; $("startBtn").disabled=false;
+   toast("CPU model loaded");
+ }catch(err){
+   $("progText").innerHTML='<span class="warn">CPU model load failed: '+esc(String(err.message||err)).slice(0,220)+'</span>';
+ }finally{b.disabled=false;}
+}
 const $=id=>document.getElementById(id);
 const toast=m=>{const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("on"),2200);};
 if("serviceWorker" in navigator && location.protocol==="https:"){navigator.serviceWorker.register("sw.js").catch(()=>{});}
@@ -230,43 +275,27 @@ function buildMessages(){const sys=[];if(S.sys.trim())sys.push(S.sys.trim());
   const t=Math.ceil(m.content.length/4)+8;if(used+t>budget&&tail.length)break;used+=t;tail.unshift({role:m.role,content:m.content});}
  const out=[];if(sys.length)out.push({role:"system",content:sys.join("\n\n")});return out.concat(tail);}
 function setGenerating(on){generating=on;$("bSend").textContent=on?"stop":"send";$("bSend").classList.toggle("stop",on);}
-async function streamLocal(ms,onDelta){const chunks=await engine.chat.completions.create({messages:ms,stream:true,
- temperature:S.temp,top_p:S.topP,max_tokens:S.maxTok,repetition_penalty:S.rep,seed:S.seed>=0?S.seed:undefined,
- stream_options:{include_usage:true}});
- for await(const ch of chunks){const p=ch.choices?.[0]?.delta?.content||"";if(p)onDelta(p);if(ch.usage)lastUsage=ch.usage;}}
+async function streamLocal(ms,onDelta){
+ if(engine){
+  const chunks=await engine.chat.completions.create({messages:ms,stream:true,
+   temperature:S.temp,top_p:S.topP,max_tokens:S.maxTok,repetition_penalty:S.rep,seed:S.seed>=0?S.seed:undefined,
+   stream_options:{include_usage:true}});
+  for await(const ch of chunks){const p=ch.choices?.[0]?.delta?.content||"";if(p)onDelta(p);if(ch.usage)lastUsage=ch.usage;}
+  return;
+ }
+ if(wasmPipe){
+  const out=await wasmPipe(ms,{max_new_tokens:Math.min(S.maxTok,256),do_sample:S.temp>0,
+    temperature:Math.max(.1,S.temp),top_p:S.topP,return_full_text:false});
+  let text="";
+  if(Array.isArray(out)&&out[0]){
+   const g=out[0].generated_text;
+   if(typeof g==="string") text=g;
+   else if(Array.isArray(g)){const last=[...g].reverse().find(x=>x.role==="assistant");text=last?.content||"";}
+  }
+  if(!text) text="Model ne koi text return nahi kiya. Dobara try karein.";
+  onDelta(text); return;
+ }
+ throw new Error("Pehle CPU model ya WebGPU model load karein.");
+}
 async function streamExternal(ms,onDelta){const res=await fetch(S.extBase.replace(/\/$/,"")+"/chat/completions",{method:"POST",
- headers:Object.assign({"Content-Type":"application/json"},S.extKey?{Authorization:"Bearer "+S.extKey}:{}),
- body:JSON.stringify({model:S.extModel,messages:ms,stream:true,temperature:S.temp,top_p:S.topP,max_tokens:S.maxTok})});
- if(!res.ok)throw new Error(await res.text());
- const rd=res.body.getReader(),dec=new TextDecoder();let buf="";
- while(true){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
-  const lines=buf.split("\n");buf=lines.pop();
-  for(const line of lines){const t=line.trim();if(!t.startsWith("data:"))continue;const d=t.slice(5).trim();if(d==="[DONE]")continue;
-   try{const j=JSON.parse(d);const p=j.choices?.[0]?.delta?.content||"";if(p)onDelta(p);if(j.usage)lastUsage=j.usage;}catch(e){}}}}
-async function send(text){if(generating)return;
- if(!S.ext&&!engine){toast("pehle model load karein");return;}
- if(text&&text.trim()){cur.msgs.push({role:"user",content:text.trim()});if(cur.title==="new chat")cur.title=text.trim().slice(0,30);}
- render();save();liveBuf="";liveNode=document.createElement("div");liveNode.className="msg ai";liveNode.textContent="\u258D";
- msgsEl.appendChild(liveNode);msgsEl.scrollTop=msgsEl.scrollHeight;setGenerating(true);
- const paint=()=>{liveRaf=0;liveNode.innerHTML=md(liveBuf)+'<span style="opacity:.4">\u258D</span>';msgsEl.scrollTop=msgsEl.scrollHeight;};
- const onDelta=p=>{liveBuf+=p;if(!liveRaf)liveRaf=requestAnimationFrame(paint);};
- try{const ms=buildMessages();if(S.ext)await streamExternal(ms,onDelta);else await streamLocal(ms,onDelta);}
- catch(err){liveBuf+="\n\n`"+String(err.message||err).slice(0,400)+"`";}
- finally{if(liveRaf)cancelAnimationFrame(liveRaf);const f=liveBuf.trim()||"(empty)";liveNode.remove();liveNode=null;
-  cur.msgs.push({role:"assistant",content:f});setGenerating(false);render();save();updateStat();if(S.tts)speak(f);}}
-function regenerate(){if(generating)return;while(cur.msgs.length&&cur.msgs[cur.msgs.length-1].role!=="user")cur.msgs.pop();
- const last=cur.msgs[cur.msgs.length-1];if(!last)return;cur.msgs.pop();send(last.content);}
-const RECOMMENDED=[
-  "SmolLM2-360M-Instruct-q4f32_1-MLC",
-  "SmolLM2-1.7B-Instruct-q4f32_1-MLC",
-  "Llama-3.2-1B-Instruct-q4f32_1-MLC"
-];
-function fillModels(){const sel=$("modelSel");
- const list=webllm.prebuiltAppConfig.model_list
-  .filter(m=>!/-MLC-b\d+$/.test(m.model_id))
-  .filter(m=>!/q4f16|q0f16|f16/i.test(m.model_id))
-  .sort((a,b)=>(a.vram_required_MB||0)-(b.vram_required_MB||0));
- const rec=[],rest=[];list.forEach(m=>(RECOMMENDED.includes(m.model_id)?rec:rest).push(m));
- const add=(arr,star)=>arr.forEach(m=>{const o=document.createElement("option");o.value=m.model_id;
-  o.textContent=(star?"\u2605 ":"")+m.model_id.replace(/-MLC$/,"")+(m.vram_required_MB?"  \u00B7  "+Math.round(m.vram_required_MB)+" MB":"");sel.appendChild(o);});
- add(rec,
+ headers:Object.assign({"Content-Type":"application/json"},S.extKey?{Au
