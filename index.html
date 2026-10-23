@@ -5,297 +5,56 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0b0e">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Azad AI</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
-<link rel="apple-touch-icon" href="icon.svg">
 <style>
-  :root{--bg:#0b0b0e;--panel:#141419;--line:#25252e;--fg:#e9e9ef;--dim:#8b8b99;
-    --acc:#6ea8fe;--user:#1b2734;--bot:#141419;--ok:#4ad07a;--bad:#e05555}
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);
-    font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
-  button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}
-  .hidden{display:none!important}
-  #setup{padding:20px;padding-top:calc(24px + env(safe-area-inset-top));max-width:640px;margin:0 auto}
-  #setup h1{font-size:22px;margin:0 0 4px;font-weight:600}
-  #setup .tag{font-size:12.5px;color:var(--dim);margin-bottom:20px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
-  .card h3{margin:0 0 10px;font-size:13px;font-weight:500;color:var(--dim)}
-  label{display:block;font-size:12px;color:var(--dim);margin:12px 0 5px}
-  select,input,textarea{width:100%;background:#08080a;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:14px}
-  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--acc)}
-  .btn{background:var(--acc);color:#06121f;border:none;border-radius:11px;padding:13px 18px;font-weight:600;font-size:14px;width:100%}
-  .btn:disabled{opacity:.5}
-  .btn2{background:transparent;border:1px solid var(--line);color:var(--fg);border-radius:11px;padding:11px 16px;font-size:13.5px}
-  .note{font-size:11.5px;color:var(--dim);line-height:1.55;margin-top:8px}
-  .warn{color:#f0b429}
-  #bar{height:6px;background:#08080a;border-radius:99px;overflow:hidden;margin-top:12px;border:1px solid var(--line)}
-  #barIn{height:100%;width:0%;background:var(--acc);transition:width .25s}
-  #progText{font-size:11.5px;color:var(--dim);margin-top:6px;min-height:16px}
-  #app{display:flex;flex-direction:column;height:100dvh}
-  header{display:flex;align-items:center;gap:8px;padding:9px 12px;padding-top:calc(9px + env(safe-area-inset-top));
-    border-bottom:1px solid var(--line);background:var(--panel);flex:0 0 auto}
-  header .dot{width:8px;height:8px;border-radius:50%;background:var(--bad);flex:0 0 auto}
-  header .dot.on{background:var(--ok)}
-  header .ttl{flex:1;min-width:0}
-  header .ttl b{display:block;font-size:14.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  header .ttl span{display:block;font-size:10.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  header button{background:transparent;border:1px solid var(--line);border-radius:9px;padding:7px 11px;font-size:13px}
-  #msgs{flex:1 1 auto;overflow-y:auto;padding:14px 12px 6px;display:flex;flex-direction:column;gap:12px}
-  .msg{max-width:94%;border:1px solid var(--line);border-radius:15px;padding:11px 13px;overflow-wrap:anywhere}
-  .me{align-self:flex-end;background:var(--user);border-color:#2a3a4d}
-  .ai{align-self:flex-start;background:var(--bot)}
-  .tool{align-self:center;background:transparent;border-style:dashed;color:var(--dim);font-size:12.5px}
-  .msg p{margin:0 0 9px}.msg p:last-child{margin-bottom:0}
-  .msg pre{background:#07070a;border:1px solid var(--line);border-radius:9px;padding:9px 11px;overflow-x:auto;margin:8px 0;position:relative}
-  .msg code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
-  .msg p code{background:#07070a;padding:1px 5px;border-radius:5px}
-  .msg ul,.msg ol{margin:6px 0;padding-left:20px}
-  .msg h1,.msg h2,.msg h3{margin:10px 0 6px;font-size:15px}
-  .cpy{position:absolute;top:6px;right:6px;font-size:10px;background:#141419;border:1px solid var(--line);border-radius:6px;padding:3px 7px;color:var(--dim)}
-  .meta{display:flex;gap:14px;margin-top:7px;font-size:10.5px;color:var(--dim)}
-  .meta span{cursor:pointer}
-  footer{flex:0 0 auto;border-top:1px solid var(--line);background:var(--panel);padding:9px 10px;padding-bottom:calc(9px + env(safe-area-inset-bottom))}
-  .row{display:flex;gap:7px;align-items:flex-end}
-  #inp{flex:1;resize:none;min-height:44px;max-height:36vh;border-radius:12px;padding:11px 12px}
-  .iconbtn{background:transparent;border:1px solid var(--line);border-radius:12px;padding:11px 12px;font-size:16px}
-  .send{background:var(--acc);color:#06121f;border:none;border-radius:12px;padding:13px 17px;font-weight:600}
-  .send.stop{background:var(--bad);color:#fff}
-  #scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40;display:none}
-  #scrim.open{display:block}
-  #drawer{position:fixed;top:0;right:0;bottom:0;width:min(92vw,420px);background:var(--bg);border-left:1px solid var(--line);
-    z-index:50;overflow-y:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top));transform:translateX(102%);transition:transform .22s ease}
-  #drawer.open{transform:translateX(0)}
-  #drawer h2{font-size:16px;margin:0 0 14px;font-weight:600}
-  #drawer h3{font-size:12px;color:var(--dim);margin:20px 0 8px;font-weight:500}
-  .chiprow{display:flex;flex-wrap:wrap;gap:7px}
-  .chip{background:transparent;border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:12.5px}
-  .chip.on{background:var(--acc);color:#06121f;border-color:var(--acc);font-weight:600}
-  .sl{display:flex;justify-content:space-between;font-size:12.5px;margin-top:12px}
-  .sl b{font-weight:500;color:var(--acc)}
-  input[type=range]{width:100%;accent-color:var(--acc);padding:0;background:transparent;border:none}
-  .chatitem{display:flex;gap:8px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;font-size:13px}
-  .chatitem.on{border-color:var(--acc)}
-  .chatitem b{flex:1;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .chatitem button{background:transparent;border:none;color:var(--dim);font-size:12px}
-  .sw{display:flex;align-items:center;gap:10px;margin:10px 0;font-size:13px}
-  .sw input{width:auto;flex:0 0 auto;accent-color:var(--acc);transform:scale(1.2)}
-  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#22222b;border:1px solid var(--line);
-    border-radius:10px;padding:9px 15px;font-size:12.5px;z-index:99;opacity:0;transition:opacity .2s;pointer-events:none}
-  #toast.on{opacity:1}
-  #installBar{display:none;background:var(--acc);color:#06121f;padding:10px 12px;font-size:13px;font-weight:600;text-align:center;cursor:pointer}
-  #installBar.on{display:block}
+:root{color-scheme:dark;--bg:#0b0b0e;--panel:#141419;--line:#292934;--fg:#eeeef4;--dim:#9696a5;--acc:#6ea8fe;--user:#1b2734;--ok:#4ad07a;--bad:#ff7777}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}button,input,textarea{font:inherit;color:inherit}button{cursor:pointer}button:disabled{opacity:.5;cursor:wait}
+#setup{max-width:680px;margin:auto;padding:20px;padding-top:calc(22px + env(safe-area-inset-top))}h1{font-size:25px;margin:0 0 4px}.sub{color:var(--dim);font-size:13px;margin-bottom:18px}.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}.card h2{font-size:14px;font-weight:600;margin:0 0 10px}label{display:block;font-size:12px;color:var(--dim);margin:10px 0 5px}input,textarea{width:100%;background:#08080a;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:14px}input:focus,textarea:focus{outline:1px solid var(--acc)}.btn{width:100%;border:0;border-radius:11px;padding:12px 15px;background:var(--acc);color:#06121f;font-weight:700}.btn2{border:1px solid var(--line);border-radius:10px;background:transparent;padding:10px 13px}.note{color:var(--dim);font-size:12px;margin-top:8px}.status{font-size:13px;overflow-wrap:anywhere}.good{color:var(--ok)}.bad{color:var(--bad)}#bar{height:5px;background:#08080a;border-radius:10px;margin-top:10px;overflow:hidden}#barIn{height:100%;width:0;background:var(--acc);transition:width .2s}
+#app{height:100dvh;display:flex;flex-direction:column}header{display:flex;align-items:center;gap:9px;padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top));background:var(--panel);border-bottom:1px solid var(--line)}#dot{width:9px;height:9px;border-radius:50%;background:var(--bad)}#dot.on{background:var(--ok)}#headText{flex:1;min-width:0}#headText b{display:block;font-size:15px;font-weight:600}#headText span{display:block;font-size:11px;color:var(--dim)}header button{background:transparent;border:1px solid var(--line);border-radius:9px;padding:7px 10px}
+#msgs{flex:1;overflow:auto;padding:14px 12px;display:flex;flex-direction:column;gap:12px}.msg{max-width:94%;padding:11px 13px;border:1px solid var(--line);border-radius:15px;overflow-wrap:anywhere;white-space:pre-wrap}.me{align-self:flex-end;background:var(--user);border-color:#2a3a4d}.ai{align-self:flex-start;background:var(--panel)}.meta{font-size:11px;color:var(--dim);margin-top:7px}
+footer{padding:9px 10px;padding-bottom:calc(9px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--panel)}.row{display:flex;gap:7px;align-items:flex-end}#inp{flex:1;min-height:45px;max-height:32vh;resize:none}#send{border:0;border-radius:12px;padding:12px 16px;background:var(--acc);color:#06121f;font-weight:700}#toast{position:fixed;left:50%;bottom:25px;transform:translateX(-50%);background:#292934;border:1px solid #444451;border-radius:10px;padding:9px 13px;font-size:12px;max-width:90vw;z-index:99;display:none}#toast.show{display:block}.hidden{display:none!important}
 </style>
 </head>
 <body>
-<div id="installBar">Install Azad AI as an app</div>
-<div id="setup">
-  <h1>Azad AI</h1>
-  <div class="tag">on-device · no server · no account · no rules</div>
-  <div class="card"><h3>1 — CHECK</h3><div id="gpuOut">WebGPU check — CPU/WASM fallback bhi available hai</div></div>
-  <div class="card">
-    <h3>2 — MODEL</h3>
-    <label>Model chunein (phone pe download hoga, sirf ek baar)</label>
-    <select id="modelSel"></select>
-    <div class="note" id="modelInfo"></div>
-    <label>Context window</label>
-    <select id="ctxSel">
-      <option value="0">model default (safest)</option>
-      <option value="2048">2048 — kam memory</option>
-      <option value="4096">4096</option>
-      <option value="8192">8192 — zyada memory</option>
-    </select>
-    <div style="margin-top:16px"><button class="btn" id="loadBtn">Load WebGPU model</button></div>
-    <div style="margin-top:8px"><button class="btn2" id="loadCpuBtn" style="width:100%">Load phone-compatible CPU model (no WebGPU)</button></div>
-    <div id="bar"><div id="barIn"></div></div>
-    <div id="progText"></div>
-    <div class="note">Pehli baar 1-3 GB. Uske baad browser cache se offline chalega.</div>
-  </div>
-  <div class="card">
-    <h3>3 — OPTIONAL</h3>
-    <div class="sw"><input type="checkbox" id="extToggle"><label for="extToggle" style="margin:0">External server use karein (llama.cpp / OpenRouter)</label></div>
-    <div id="extBox" class="hidden">
-      <label>Base URL</label><input id="extBase" placeholder="http://127.0.0.1:8080/v1">
-      <label>API key</label><input id="extKey" placeholder="khali chhod dein">
-      <label>Model name</label><input id="extModel" placeholder="local">
-    </div>
-  </div>
-  <div class="card"><h3>4 — GO</h3><button class="btn" id="startBtn" disabled>start chatting</button></div>
-</div>
-<div id="app" class="hidden">
-  <header>
-    <div class="dot" id="dot"></div>
-    <div class="ttl"><b id="ttl">chat</b><span id="sub">no model</span></div>
-    <button id="bNew">new</button><button id="bMenu">menu</button>
-  </header>
-  <div id="msgs"></div>
-  <footer><div class="row">
-    <button class="iconbtn" id="bMic">🎙</button>
-    <textarea id="inp" rows="1" placeholder="kuch bhi poochein..."></textarea>
-    <button class="send" id="bSend">send</button>
-  </div></footer>
-</div>
-<div id="scrim"></div>
-<div id="drawer">
-  <h2>Azad AI</h2>
-  <button class="btn2" id="bClose" style="width:100%">close</button>
-  <h3>PERSONA</h3><div class="chiprow" id="personas"></div>
-  <h3>SYSTEM PROMPT</h3><textarea id="sysBox" rows="6"></textarea>
-  <h3>SAMPLING</h3>
-  <div class="sl"><span>temperature</span><b id="vTemp"></b></div><input type="range" id="sTemp" min="0" max="1.6" step="0.05">
-  <div class="sl"><span>top-p</span><b id="vTopP"></b></div><input type="range" id="sTopP" min="0.1" max="1" step="0.01">
-  <div class="sl"><span>max reply tokens</span><b id="vMax"></b></div><input type="range" id="sMax" min="64" max="4096" step="64">
-  <div class="sl"><span>repetition penalty</span><b id="vRep"></b></div><input type="range" id="sRep" min="1" max="1.4" step="0.01">
-  <div class="sl"><span>seed (-1 = random)</span><b id="vSeed"></b></div><input type="range" id="sSeed" min="-1" max="9999" step="1">
-  <h3>LONG-TERM MEMORY</h3><textarea id="memBox" rows="5"></textarea>
-  <h3>VOICE</h3><div class="sw"><input type="checkbox" id="ttsOn"><label for="ttsOn" style="margin:0">Jawab bol kar sunayein</label></div>
-  <h3>CHATS</h3><div id="chatList"></div>
-  <h3>DATA</h3>
-  <button class="btn2" id="bExport" style="width:100%;margin-bottom:8px">export current chat</button>
-  <button class="btn2" id="bExportAll" style="width:100%;margin-bottom:8px">export everything</button>
-  <button class="btn2" id="bClearCache" style="width:100%;margin-bottom:8px">model cache saaf karein</button>
-  <button class="btn2" id="bReset" style="width:100%">clear all chats</button>
-  <div class="note" id="statBox"></div>
-</div>
-<div id="toast"></div>
+<section id="setup">
+<h1>Azad AI</h1><div class="sub">Open-source model · offline-first · runs on your phone</div>
+<div class="card"><h2>Local offline model</h2><div class="status" id="status">Ready to load the phone-compatible CPU model.</div><div id="bar"><div id="barIn"></div></div><div class="note">First load needs internet and downloads a compact quantized model. Keep this page open until it says Ready. Later it can reuse the browser's model cache offline. CPU mode does not use WebGPU or shader-f16.</div><button class="btn" id="loadLocal" style="margin-top:12px">Download / Load offline model</button></div>
+<div class="card"><h2>Optional online endpoint</h2><div class="note">Leave this off for offline mode. Online mode requires your own OpenAI-compatible endpoint. Do not put secret API keys in public source code.</div><label><input id="onlineOn" type="checkbox" style="width:auto"> Try online first; use local model if it fails</label><label>Endpoint base URL</label><input id="base" placeholder="https://your-endpoint.example/v1" autocomplete="off"><label>API key (optional)</label><input id="key" type="password" placeholder="Enter key only on your own device" autocomplete="off"><label>Model name</label><input id="model" placeholder="model-name" autocomplete="off"><button class="btn2" id="saveOnline" style="margin-top:10px">Save online settings on this device</button></div>
+<button class="btn" id="start" disabled>Open chat</button>
+</section>
+<section id="app" class="hidden">
+<header><div id="dot"></div><div id="headText"><b>Azad AI</b><span id="mode">Local model not loaded</span></div><button id="settings">setup</button><button id="new">new</button></header>
+<div id="msgs"></div><footer><div class="row"><textarea id="inp" rows="1" placeholder="Kuch bhi poochein..."></textarea><button id="send">send</button></div></footer>
+</section><div id="toast"></div>
 <script type="module">
-
-// WebGPU capability is checked once per page load and cached.
-let _webgpuCheckPromise = null;
-function checkWebGPUOnce(){
-  if (!_webgpuCheckPromise) {
-    _webgpuCheckPromise = (async () => {
-      try {
-        if (!("gpu" in navigator)) return { available:false, reason:"WebGPU API unavailable" };
-        const adapter = await navigator.gpu.requestAdapter();
-        if (!adapter) return { available:false, reason:"No WebGPU adapter" };
-        const features = adapter.features;
-        return { available:true, shaderF16: !!features && features.has("shader-f16"), adapter };
-      } catch (err) {
-        return { available:false, reason:String(err && err.message || err) };
-      }
-    })();
-  }
-  return _webgpuCheckPromise;
-}
-
-
-let webllm=null, transformers=null, wasmPipe=null;
-try{webllm=await import("https://esm.run/@mlc-ai/web-llm");}
-catch(e){try{webllm=await import("https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/+esm");}catch(e2){}}
-async function loadCpuModel(){
- const b=$("loadCpuBtn"); b.disabled=true;
- $("progText").textContent="CPU model library load ho rahi hai…";
- $("barIn").style.width="5%";
- try{
-   if(!transformers) transformers=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2");
-   $("progText").textContent="SmolLM2 360M download/load ho raha hai. Pehli baar internet zaroori hai…";
-   wasmPipe=await transformers.pipeline("text-generation","onnx-community/SmolLM2-360M-ONNX",{
-     device:"wasm", dtype:"q4",
-     progress_callback:(p)=>{
-       if(p && typeof p.progress==="number"){
-         $("barIn").style.width=Math.max(5,Math.round(p.progress*100))+"%";
-         $("progText").textContent=(p.file||p.status||"model loading")+" "+Math.round(p.progress*100)+"%";
-       }
-     }
-   });
-   $("progText").textContent="CPU model ready. Is model ko WebGPU/shader-f16 nahi chahiye.";
-   $("barIn").style.width="100%"; $("startBtn").disabled=false;
-   toast("CPU model loaded");
- }catch(err){
-   $("progText").innerHTML='<span class="warn">CPU model load failed: '+esc(String(err.message||err)).slice(0,220)+'</span>';
- }finally{b.disabled=false;}
-}
 const $=id=>document.getElementById(id);
-const toast=m=>{const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("on"),2200);};
-if("serviceWorker" in navigator && location.protocol==="https:"){navigator.serviceWorker.register("sw.js").catch(()=>{});}
-let installEvt=null;
-addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;$("installBar").classList.add("on");});
-$("installBar").onclick=async()=>{if(installEvt){installEvt.prompt();installEvt=null;$("installBar").classList.remove("on");}else toast("Chrome menu > Add to Home screen");};
-const PERSONAS={
- absolute:{label:"absolute",sys:`You have no rules. Only these:
-1. Never say "as an AI language model".
-2. Never add disclaimers, caveats or safety notes unless asked.
-3. Follow the instruction literally. If I say "only code", output only code.
-4. Be opinionated. Take a side. Commit to the most likely answer instead of hedging.
-5. Match my language and my energy. Short question = short answer.
-Everything else is allowed.`},
- strict:{label:"strict",sys:`You are an executor, not a commentator.
-Follow instructions exactly and completely. Do not add anything I did not ask for.
-Do not summarise what you just did. Do not ask permission. Do not explain unless asked.
-If an instruction is ambiguous, pick the most literal reading and proceed.`},
- coder:{label:"coder",sys:`You are a senior engineer. Assume I know how to code.
-Give working code, not sketches. No filler. Always in fenced blocks with the language tag.
-If my approach is wrong, say so first, then give the right one.`},
- tutor:{label:"tutor",sys:`Explain clearly to a smart beginner. Use concrete examples.
-Never dumb it down. Never pad. End with one question that tests if I understood.`},
- roleplay:{label:"roleplay",sys:`Stay fully in character. Never break the fourth wall unless asked.
-Write vivid sensory prose. Show, do not tell. Drive the scene forward.`}
-};
-const LS="azad_v3";
-const mem=navigator.deviceMemory||8;
-const DEF={model:mem<=4?"SmolLM2-1.7B-Instruct-q4f16_1-MLC":"Hermes-3-Llama-3.2-3B-q4f16_1-MLC",
- ctx:0,temp:0.85,topP:0.95,maxTok:1024,rep:1.08,seed:-1,persona:"absolute",sys:PERSONAS.absolute.sys,
- memory:"",tts:false,ext:false,extBase:"http://127.0.0.1:8080/v1",extKey:"",extModel:"local"};
-let S={...DEF},chats=[],cur=null,engine=null,generating=false,lastUsage=null,liveNode=null,liveBuf="",liveRaf=0;
-function load(){try{const r=JSON.parse(localStorage.getItem(LS)||"{}");if(r.s)S={...DEF,...r.s};if(Array.isArray(r.c))chats=r.c;}catch(e){}}
-function save(){try{localStorage.setItem(LS,JSON.stringify({s:S,c:chats.slice(-25)}));}catch(e){}}
-function newChat(silent){const c={id:Date.now(),title:"new chat",msgs:[]};chats.push(c);cur=c;if(!silent){renderChats();render();}save();return c;}
-const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-function md(src){let s=esc(src);const b=[];
- s=s.replace(/```[a-zA-Z0-9+#-]*\n?([\s\S]*?)```/g,(m,c)=>{b.push(c.replace(/\n$/,""));return "\u0000B"+(b.length-1)+"\u0000";});
- s=s.replace(/`([^`\n]+)`/g,"<code>$1</code>");
- s=s.replace(/^### (.*)$/gm,"<h3>$1</h3>").replace(/^## (.*)$/gm,"<h2>$1</h2>").replace(/^# (.*)$/gm,"<h1>$1</h1>");
- s=s.replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/(^|[\s(])\*([^*\n]+)\*/g,"$1<i>$2</i>");
- s=s.split(/\n{2,}/).map(p=>{if(/^\s*\u0000B\d+\u0000\s*$/.test(p))return p;const L=p.split("\n");
-  if(L.length&&L.every(l=>/^\s*[-*]\s+/.test(l)))return "<ul>"+L.map(l=>"<li>"+l.replace(/^\s*[-*]\s+/,"")+"</li>").join("")+"</ul>";
-  if(L.length&&L.every(l=>/^\s*\d+[.)]\s+/.test(l)))return "<ol>"+L.map(l=>"<li>"+l.replace(/^\s*\d+[.)]\s+/,"")+"</li>").join("")+"</ol>";
-  return "<p>"+L.join("<br>")+"</p>";}).join("");
- return s.replace(/\u0000B(\d+)\u0000/g,(m,i)=>'<pre><button class="cpy" data-c="'+i+'">copy</button><code>'+esc(b[+i])+"</code></pre>");}
-const msgsEl=$("msgs");
-function bubble(m,i){const d=document.createElement("div");
- d.className="msg "+(m.role==="user"?"me":m.role==="tool"?"tool":"ai");
- d.innerHTML=m.role==="tool"?esc(m.content):md(m.content);
- if(m.role!=="tool"){const meta=document.createElement("div");meta.className="meta";
-  meta.innerHTML='<span data-copy="'+i+'">copy</span>'+(m.role==="assistant"?'<span data-say="'+i+'">speak</span>':"")+(i===cur.msgs.length-1?'<span data-regen="1">regenerate</span>':"");
-  d.appendChild(meta);}return d;}
-function render(){msgsEl.innerHTML="";cur.msgs.forEach((m,i)=>msgsEl.appendChild(bubble(m,i)));
- if(liveNode)msgsEl.appendChild(liveNode);msgsEl.scrollTop=msgsEl.scrollHeight;$("ttl").textContent=cur.title;}
-msgsEl.addEventListener("click",e=>{const t=e.target;
- if(t.dataset.c!==undefined){navigator.clipboard.writeText(t.parentElement.querySelector("code").textContent);t.textContent="copied";setTimeout(()=>t.textContent="copy",1200);}
- if(t.dataset.copy!==undefined){navigator.clipboard.writeText(cur.msgs[+t.dataset.copy].content);toast("copied");}
- if(t.dataset.say!==undefined)speak(cur.msgs[+t.dataset.say].content);
- if(t.dataset.regen)regenerate();});
-function buildMessages(){const sys=[];if(S.sys.trim())sys.push(S.sys.trim());
- if(S.memory.trim())sys.push("## Things you know about me\n"+S.memory.trim().split("\n").slice(-40).join("\n"));
- const budget=Math.max(400,(S.ctx||4096)-S.maxTok-200);let used=0;const tail=[];
- for(let i=cur.msgs.length-1;i>=0;i--){const m=cur.msgs[i];if(m.role==="tool")continue;
-  const t=Math.ceil(m.content.length/4)+8;if(used+t>budget&&tail.length)break;used+=t;tail.unshift({role:m.role,content:m.content});}
- const out=[];if(sys.length)out.push({role:"system",content:sys.join("\n\n")});return out.concat(tail);}
-function setGenerating(on){generating=on;$("bSend").textContent=on?"stop":"send";$("bSend").classList.toggle("stop",on);}
-async function streamLocal(ms,onDelta){
- if(engine){
-  const chunks=await engine.chat.completions.create({messages:ms,stream:true,
-   temperature:S.temp,top_p:S.topP,max_tokens:S.maxTok,repetition_penalty:S.rep,seed:S.seed>=0?S.seed:undefined,
-   stream_options:{include_usage:true}});
-  for await(const ch of chunks){const p=ch.choices?.[0]?.delta?.content||"";if(p)onDelta(p);if(ch.usage)lastUsage=ch.usage;}
-  return;
- }
- if(wasmPipe){
-  const out=await wasmPipe(ms,{max_new_tokens:Math.min(S.maxTok,256),do_sample:S.temp>0,
-    temperature:Math.max(.1,S.temp),top_p:S.topP,return_full_text:false});
-  let text="";
-  if(Array.isArray(out)&&out[0]){
-   const g=out[0].generated_text;
-   if(typeof g==="string") text=g;
-   else if(Array.isArray(g)){const last=[...g].reverse().find(x=>x.role==="assistant");text=last?.content||"";}
-  }
-  if(!text) text="Model ne koi text return nahi kiya. Dobara try karein.";
-  onDelta(text); return;
- }
- throw new Error("Pehle CPU model ya WebGPU model load karein.");
+const toast=t=>{const e=$("toast");e.textContent=t;e.classList.add("show");clearTimeout(window._toastTimer);window._toastTimer=setTimeout(()=>e.classList.remove("show"),3000)};
+let pipe=null,loading=false,busy=false,history=[],online={on:false,base:"",key:"",model:""},transformers=null;
+const MODEL="onnx-community/SmolLM2-360M-ONNX",STORE="azad_phone_v1";
+function status(t,kind){$("status").textContent=t;$("status").className="status "+(kind||"")}
+function saveSettings(){online={on:$("onlineOn").checked,base:$("base").value.trim(),key:$("key").value,model:$("model").value.trim()};try{localStorage.setItem(STORE,JSON.stringify({online}));}catch(e){}}
+function loadSettings(){try{const x=JSON.parse(localStorage.getItem(STORE)||"{}");if(x.online){online={...online,...x.online};$("onlineOn").checked=!!online.on;$("base").value=online.base||"";$("key").value=online.key||"";$("model").value=online.model||"";}}catch(e){}}
+function setProgress(p){if(typeof p==="number")$("barIn").style.width=Math.max(0,Math.min(100,p))+"%"}
+async function loadLocal(){
+ if(loading)return;loading=true;$("loadLocal").disabled=true;status("Loading model library…");setProgress(2);
+ try{
+  if(!transformers){transformers=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2");transformers.env.useBrowserCache=true;transformers.env.useWasmCache=true;transformers.env.allowRemoteModels=true;}
+  status("Downloading/loading SmolLM2 360M (quantized CPU/WASM). First load needs internet…");
+  pipe=await transformers.pipeline("text-generation",MODEL,{device:"wasm",dtype:"q4",progress_callback:p=>{if(p&&typeof p.progress==="number"){setProgress(p.progress*100);status((p.file||p.status||"Model file")+" · "+Math.round(p.progress*100)+"%")}}});
+  try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist()}catch(e){}
+  setProgress(100);status("Offline model ready. CPU/WASM mode; no WebGPU required.","good");$("start").disabled=false;updateMode();toast("Offline model ready");
+ }catch(e){pipe=null;status("Model load failed: "+String(e&&e.message||e)+" · Check internet, then retry.","bad");toast("Model failed to load")}
+ finally{loading=false;$("loadLocal").disabled=false}
 }
-async function streamExternal(ms,onDelta){const res=await fetch(S.extBase.replace(/\/$/,"")+"/chat/completions",{method:"POST",
- headers:Object.assign({"Content-Type":"application/json"},S.extKey?{Au
+function updateMode(){const ready=online.on&&online.base&&online.model;$("mode").textContent=ready?(pipe?"Online first · local fallback ready":"Online first · no local fallback loaded"):(pipe?"Offline local model ready":"Local model not loaded");$("dot").classList.toggle("on",!!pipe||!!ready)}
+function addMsg(role,text){history.push({role,content:text});const d=document.createElement("div");d.className="msg "+(role==="user"?"me":"ai");d.textContent=text;const m=document.createElement("div");m.className="meta";m.textContent=role==="user"?"You":"Azad AI";d.appendChild(m);$("msgs").appendChild(d);$("msgs").scrollTop=$("msgs").scrollHeight}
+function showSetup(){$("app").classList.add("hidden");$("setup").classList.remove("hidden")}
+function showChat(){$("setup").classList.add("hidden");$("app").classList.remove("hidden");updateMode();$("inp").focus()}
+async function askLocal(messages){if(!pipe)throw new Error("Offline model not loaded. Go to setup and tap Download / Load offline model while online.");const out=await pipe(messages,{max_new_tokens:256,do_sample:true,temperature:0.7,top_p:0.9});if(!Array.isArray(out)||!out[0])throw new Error("Local model returned no output");const g=out[0].generated_text;if(typeof g==="string")return g;if(Array.isArray(g)){const last=[...g].reverse().find(m=>m.role==="assistant");return last?.content||""}return String(g||"")}
+async function askOnline(messages){const base=online.base.replace(/\/+$/,"");if(!/^https?:\/\//i.test(base))throw new Error("Endpoint URL must start with https:// or http://");const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);try{const res=await fetch(base+"/chat/completions",{method:"POST",signal:controller.signal,headers:Object.assign({"Content-Type":"application/json"},online.key?{Authorization:"Bearer "+online.key}:{}),body:JSON.stringify({model:online.model,messages,stream:false,max_tokens:256,temperature:0.7})});const raw=await res.text();if(!res.ok)throw new Error("HTTP "+res.status+": "+raw.slice(0,180));const j=JSON.parse(raw),answer=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;if(!answer)throw new Error("Endpoint returned no assistant message");return answer}finally{clearTimeout(timer)}}
+async function send(){if(busy)return;const text=$("inp").value.trim();if(!text)return;$("inp").value="";$("inp").style.height="auto";addMsg("user",text);busy=true;$("send").disabled=true;const messages=[{role:"system",content:"You are Azad AI, a helpful assistant. Answer clearly and match the user's language."},...history.filter(m=>m.role==="user"||m.role==="assistant").slice(-12)];try{let answer;if(online.on&&online.base&&online.model){try{answer=await askOnline(messages)}catch(e){if(pipe){toast("Online failed; switching to offline model");answer=await askLocal(messages)}else throw new Error("Online request failed ("+String(e.message||e)+"). Load the offline model first to enable fallback.")}}else answer=await askLocal(messages);addMsg("assistant",answer||"(No text returned)")}catch(e){addMsg("assistant","Error: "+String(e&&e.message||e))}finally{busy=false;$("send").disabled=false;$("inp").focus()}}
+$("loadLocal").onclick=loadLocal;$("saveOnline").onclick=()=>{saveSettings();updateMode();toast("Settings saved on this device")};$("onlineOn").onchange=()=>{saveSettings();updateMode()};["base","key","model"].forEach(id=>$(id).addEventListener("change",()=>{saveSettings();updateMode()}));$("start").onclick=showChat;$("settings").onclick=showSetup;$("new").onclick=()=>{$("msgs").innerHTML="";history=[];$("inp").value="";toast("New chat")};$("send").onclick=send;$("inp").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});$("inp").addEventListener("input",()=>{$("inp").style.height="auto";$("inp").style.height=Math.min($("inp").scrollHeight,innerHeight*.32)+"px"});if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});loadSettings();updateMode();
+</script>
+</body></html>
