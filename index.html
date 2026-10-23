@@ -110,15 +110,15 @@
     <div style="margin-top:16px"><button class="btn" id="loadBtn">load model</button></div>
     <div id="bar"><div id="barIn"></div></div>
     <div id="progText"></div>
-    <div class="note">Pehli baar model download hota hai. Offline use tabhi mumkin hai jab browser aur phone selected model ko support karein. Agar shader-f16 support nahi hai, kuch models load nahi honge.</div>
+    <div class="note">Pehli baar 1-3 GB. Uske baad browser cache se offline chalega.</div>
   </div>
   <div class="card">
     <h3>3 — OPTIONAL</h3>
-    <div class="sw"><input type="checkbox" id="extToggle"><label for="extToggle" style="margin:0">Online API / external server use karein (online first, local fallback)</label></div>
-    <div id="extBox" class="hidden"><div class="note warn">Important: GitHub Pages par API key browser mein use hoti hai aur technically expose ho sakti hai. Public site ke liye private backend/proxy zyada safe hai. API key ko public repository mein hard-code na karein.</div>
-      <label>Base URL</label><input id="extBase" placeholder="https://openrouter.ai/api/v1">
+    <div class="sw"><input type="checkbox" id="extToggle"><label for="extToggle" style="margin:0">External server use karein (llama.cpp / OpenRouter)</label></div>
+    <div id="extBox" class="hidden">
+      <label>Base URL</label><input id="extBase" placeholder="http://127.0.0.1:8080/v1">
       <label>API key</label><input id="extKey" placeholder="khali chhod dein">
-      <label>Model name</label><input id="extModel" placeholder="provider/model-name">
+      <label>Model name</label><input id="extModel" placeholder="local">
     </div>
   </div>
   <div class="card"><h3>4 — GO</h3><button class="btn" id="startBtn" disabled>start chatting</button></div>
@@ -250,119 +250,23 @@ async function send(text){if(generating)return;
  msgsEl.appendChild(liveNode);msgsEl.scrollTop=msgsEl.scrollHeight;setGenerating(true);
  const paint=()=>{liveRaf=0;liveNode.innerHTML=md(liveBuf)+'<span style="opacity:.4">\u258D</span>';msgsEl.scrollTop=msgsEl.scrollHeight;};
  const onDelta=p=>{liveBuf+=p;if(!liveRaf)liveRaf=requestAnimationFrame(paint);};
- try{
-   const ms=buildMessages();
-   if(S.ext){
-    try{await streamExternal(ms,onDelta);}
-    catch(onlineErr){
-     if(engine){
-      liveBuf+="\\n\\n[Online API unavailable; trying the loaded local model...]\\n\\n";
-      await streamLocal(ms,onDelta);
-     }else{
-      throw new Error("Online API failed and no local model is loaded. Check Base URL, model name, API key and internet. Details: "+String(onlineErr.message||onlineErr).slice(0,250));
-     }
-    }
-   }else{await streamLocal(ms,onDelta);}
-  }
+ try{const ms=buildMessages();if(S.ext)await streamExternal(ms,onDelta);else await streamLocal(ms,onDelta);}
  catch(err){liveBuf+="\n\n`"+String(err.message||err).slice(0,400)+"`";}
  finally{if(liveRaf)cancelAnimationFrame(liveRaf);const f=liveBuf.trim()||"(empty)";liveNode.remove();liveNode=null;
   cur.msgs.push({role:"assistant",content:f});setGenerating(false);render();save();updateStat();if(S.tts)speak(f);}}
 function regenerate(){if(generating)return;while(cur.msgs.length&&cur.msgs[cur.msgs.length-1].role!=="user")cur.msgs.pop();
  const last=cur.msgs[cur.msgs.length-1];if(!last)return;cur.msgs.pop();send(last.content);}
-const RECOMMENDED=["SmolLM2-1.7B-Instruct-q4f16_1-MLC","gemma-3-1b-it-q4f16_1-MLC","Qwen3-1.7B-q4f16_1-MLC",
- "Hermes-3-Llama-3.2-3B-q4f16_1-MLC","Llama-3.2-3B-Instruct-q4f16_1-MLC","Qwen3-4B-q4f16_1-MLC",
- "Phi-4-mini-instruct-q4f16_1-MLC","Qwen2.5-7B-Instruct-q4f16_1-MLC"];
+const RECOMMENDED=[
+  "SmolLM2-360M-Instruct-q4f32_1-MLC",
+  "SmolLM2-1.7B-Instruct-q4f32_1-MLC",
+  "Llama-3.2-1B-Instruct-q4f32_1-MLC"
+];
 function fillModels(){const sel=$("modelSel");
- const list=webllm.prebuiltAppConfig.model_list.filter(m=>!/-MLC-b\d+$/.test(m.model_id)).sort((a,b)=>(a.vram_required_MB||0)-(b.vram_required_MB||0));
+ const list=webllm.prebuiltAppConfig.model_list
+  .filter(m=>!/-MLC-b\d+$/.test(m.model_id))
+  .filter(m=>!/q4f16|q0f16|f16/i.test(m.model_id))
+  .sort((a,b)=>(a.vram_required_MB||0)-(b.vram_required_MB||0));
  const rec=[],rest=[];list.forEach(m=>(RECOMMENDED.includes(m.model_id)?rec:rest).push(m));
  const add=(arr,star)=>arr.forEach(m=>{const o=document.createElement("option");o.value=m.model_id;
   o.textContent=(star?"\u2605 ":"")+m.model_id.replace(/-MLC$/,"")+(m.vram_required_MB?"  \u00B7  "+Math.round(m.vram_required_MB)+" MB":"");sel.appendChild(o);});
- add(rec,true);add(rest,false);sel.value=S.model;if(!sel.value)sel.value=rec[0]?.value||list[0]?.model_id;
- sel.onchange=()=>{const m=list.find(x=>x.model_id===sel.value);
-  $("modelInfo").textContent=m&&m.vram_required_MB?"\u2248 "+Math.round(m.vram_required_MB)+" MB memory chahiye. Slow lage to chhota model lein.":"";};
- sel.onchange();}
-async function loadModel(){const id=$("modelSel").value;$("loadBtn").disabled=true;$("barIn").style.width="0%";$("progText").textContent="preparing...";
- if(engine){try{await engine.unload();}catch(e){}engine=null;}
- const cfg=JSON.parse(JSON.stringify(webllm.prebuiltAppConfig));const cw=parseInt($("ctxSel").value,10);
- if(cw)cfg.model_list.forEach(r=>{if(r.context_window_size){r.context_window_size=cw;r.sliding_window_size=-1;r.prefill_chunk_size=Math.min(r.prefill_chunk_size||cw,cw);}});
- try{engine=await webllm.CreateMLCEngine(id,{appConfig:cfg,initProgressCallback:p=>{const pc=Math.round((p.progress||0)*100);
-   $("barIn").style.width=pc+"%";$("progText").textContent=pc+"%  "+(p.text||"").slice(0,90);}});
-  S.model=id;S.ctx=cw;save();$("progText").textContent="ready";$("startBtn").disabled=false;toast("model loaded");}
- catch(err){$("progText").innerHTML='<span class="warn">fail: '+esc(String(err.message||err)).slice(0,200)+"</span>";$("loadBtn").disabled=false;}}
-function speak(text){if(!("speechSynthesis" in window))return;speechSynthesis.cancel();
- const u=new SpeechSynthesisUtterance(text.replace(/```[\s\S]*?```/g," code block ").slice(0,2000));u.rate=1.02;speechSynthesis.speak(u);}
-let recog=null;
-function mic(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!SR){toast("voice input support nahi");return;}
- if(recog){recog.stop();recog=null;return;}
- recog=new SR();recog.lang=navigator.language||"en-US";recog.interimResults=true;
- recog.onresult=e=>{let s="";for(let i=0;i<e.results.length;i++)s+=e.results[i][0].transcript;$("inp").value=s;autoGrow();};
- recog.onend=()=>{recog=null;};recog.start();toast("boliye...");}
-function openDrawer(v){$("drawer").classList.toggle("open",v);$("scrim").classList.toggle("open",v);}
-function renderPersonas(){const box=$("personas");box.innerHTML="";
- Object.entries(PERSONAS).forEach(([k,p])=>{const b=document.createElement("button");b.className="chip"+(S.persona===k?" on":"");
-  b.textContent=p.label;b.onclick=()=>{S.persona=k;S.sys=p.sys;$("sysBox").value=p.sys;save();renderPersonas();};box.appendChild(b);});}
-function renderChats(){const box=$("chatList");box.innerHTML="";
- chats.slice().reverse().forEach(c=>{const d=document.createElement("div");d.className="chatitem"+(cur&&cur.id===c.id?" on":"");
-  d.innerHTML="<b></b><button>del</button>";d.querySelector("b").textContent=c.title+"  ("+c.msgs.length+")";
-  d.querySelector("b").onclick=()=>{cur=c;renderChats();render();openDrawer(false);};
-  d.querySelector("button").onclick=()=>{chats=chats.filter(x=>x.id!==c.id);if(cur&&cur.id===c.id)cur=chats[chats.length-1]||newChat(true);
-   renderChats();render();save();};box.appendChild(d);});}
-function updateStat(){const t=cur?cur.msgs.reduce((a,m)=>a+m.content.length,0):0;
- $("statBox").textContent="chats: "+chats.length+" \u00B7 messages: "+(cur?cur.msgs.length:0)+" \u00B7 chars: "+t+(lastUsage?" \u00B7 last tokens: "+lastUsage.completion_tokens:"");}
-function bindSlider(id,vid,key){const el=$(id),v=$(vid);el.value=S[key];v.textContent=S[key];
- el.oninput=()=>{S[key]=parseFloat(el.value);v.textContent=S[key];save();};}
-function download(name,text){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);}
-load();$("extToggle").checked=S.ext;$("extBase").value=S.extBase;$("extKey").value=S.extKey;$("extModel").value=S.extModel;
-$("sysBox").value=S.sys;$("memBox").value=S.memory;$("ttsOn").checked=S.tts;$("ctxSel").value=String(S.ctx||0);
-$("extToggle").onchange=()=>{S.ext=$("extToggle").checked;$("extBox").classList.toggle("hidden",!S.ext);$("startBtn").disabled=!(S.ext||engine);save();};
-["extBase","extKey","extModel"].forEach(id=>$(id).oninput=()=>{S.extBase=$("extBase").value;S.extKey=$("extKey").value;S.extModel=$("extModel").value;save();});
-fillModels();
-async function checkGpu(){
- try{
-  if(!navigator.gpu){
-   $("gpuOut").innerHTML='<span class="warn">WebGPU nahi mila.</span> Online API use karein, ya supported browser/device par try karein.';
-   return;
-  }
-  const adapter=await navigator.gpu.requestAdapter();
-  if(!adapter){
-   $("gpuOut").innerHTML='<span class="warn">WebGPU adapter nahi mila.</span> Online API use karein.';
-   return;
-  }
-  const f16=adapter.features&&adapter.features.has("shader-f16");
-  $("gpuOut").innerHTML=f16
-   ?'<span style="color:var(--ok)">WebGPU aur shader-f16 available.</span> Compatible local models try kar sakte hain.'
-   :'<span class="warn">WebGPU available, lekin shader-f16 available nahi.</span> Is wajah se f16 wale local models fail ho sakte hain. Online API configure karein; offline local inference ki guarantee nahi.';
- }catch(e){
-  $("gpuOut").innerHTML='<span class="warn">GPU check fail hua.</span> Online API configure karein.';
- }
-}
-checkGpu();
-$("loadBtn").onclick=loadModel;
-$("startBtn").onclick=()=>{$("setup").classList.add("hidden");$("app").classList.remove("hidden");
- cur=chats[chats.length-1]||newChat(true);renderChats();render();updateStat();
- $("sub").textContent=S.ext?"external: "+S.extModel:S.model.replace(/-MLC$/,"");$("dot").classList.add("on");};
-$("bNew").onclick=()=>newChat();
-$("bMenu").onclick=()=>{renderPersonas();renderChats();updateStat();openDrawer(true);};
-$("bClose").onclick=()=>openDrawer(false);$("scrim").onclick=()=>openDrawer(false);$("bMic").onclick=mic;
-const inp=$("inp");
-function autoGrow(){inp.style.height="auto";inp.style.height=Math.min(inp.scrollHeight,innerHeight*0.36)+"px";}
-inp.addEventListener("input",autoGrow);
-inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();doSend();}});
-function doSend(){const t=inp.value;inp.value="";autoGrow();send(t);}
-$("bSend").onclick=()=>{if(generating){engine&&engine.interruptGenerate();}else doSend();};
-$("sysBox").oninput=()=>{S.sys=$("sysBox").value;S.persona="custom";renderPersonas();save();};
-$("memBox").oninput=()=>{S.memory=$("memBox").value;save();};
-$("ttsOn").onchange=()=>{S.tts=$("ttsOn").checked;save();};
-bindSlider("sTemp","vTemp","temp");bindSlider("sTopP","vTopP","topP");bindSlider("sMax","vMax","maxTok");
-bindSlider("sRep","vRep","rep");bindSlider("sSeed","vSeed","seed");
-$("bExport").onclick=()=>{const t="# "+cur.title+"\n\n"+cur.msgs.map(m=>(m.role==="user"?"**me:** ":m.role==="assistant"?"**ai:** ":"`tool:` ")+m.content).join("\n\n");
- download("azad-chat-"+cur.id+".md",t);};
-$("bExportAll").onclick=()=>download("azad-backup.json",JSON.stringify({s:S,c:chats},null,2));
-$("bClearCache").onclick=async()=>{if(!confirm("Model cache delete?"))return;
- try{await webllm.deleteModelAllInfoInCache($("modelSel").value);toast("cache saaf");}catch(e){toast("fail");}};
-$("bReset").onclick=()=>{if(!confirm("Saare chats delete?"))return;chats=[];newChat();renderChats();render();save();};
-addEventListener("beforeunload",e=>{if(generating){e.preventDefault();e.returnValue="";}});
-</script>
-</body>
-</html>
+ add(rec,
